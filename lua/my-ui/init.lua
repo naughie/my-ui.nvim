@@ -47,6 +47,14 @@ function M.open_file_into_current_win(path)
 end
 
 -- path should be `vim.fn.fnameescape`d before call
+function M.focus_on_last_active_win()
+    local win = last_active_win.get()
+    if not win or not api.nvim_win_is_valid(win) then return end
+
+    api.nvim_set_current_win(win)
+end
+
+-- path should be `vim.fn.fnameescape`d before call
 function M.open_file_into_last_active_win(path)
     local win = last_active_win.get()
     if not win or not api.nvim_win_is_valid(win) then
@@ -144,16 +152,16 @@ local function declare_ui_one()
         api.nvim_buf_delete(buf, { force = true })
     end
 
-    ui.lines = function(start, end, strict_indexing)
+    ui.lines = function(start, end_idx, strict_indexing)
         local buf = ui.states.buf_id.get()
         if not buf then return end
-        return api.nvim_buf_get_lines(buf, start, end, strict_indexing)
+        return api.nvim_buf_get_lines(buf, start, end_idx, strict_indexing)
     end
 
-    ui.set_lines = function(start, end, strict_indexing, replacement)
+    ui.set_lines = function(start, end_idx, strict_indexing, replacement)
         local buf = ui.states.buf_id.get()
         if not buf then return end
-        return api.nvim_buf_set_lines(buf, start, end, strict_indexing, replacement)
+        return api.nvim_buf_set_lines(buf, start, end_idx, strict_indexing, replacement)
     end
 
     ui.get_win = function()
@@ -198,7 +206,7 @@ function M.declare_ui(user_opts)
         local buf = ui.main.states.buf_id.get()
         if not buf then return end
 
-        local dim = calc_geom_dim()
+        local dim = calc_geom_dim(opts)
         local pos = calc_geom_position_in(opts.geom.main, dim)
         local geom = {
             width = dim.main.width,
@@ -237,7 +245,7 @@ function M.declare_ui(user_opts)
         local buf = ui.companion.states.buf_id.get()
         if not buf then return end
 
-        local dim = calc_geom_dim()
+        local dim = calc_geom_dim(opts)
         local pos = calc_geom_position_in(opts.geom.companion, dim)
         local geom = {
             width = dim.companion.width,
