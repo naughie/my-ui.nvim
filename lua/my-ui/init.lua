@@ -6,14 +6,14 @@ local api = vim.api
 
 local default_opts = {
     geom = {
-        main_ui = {
+        main = {
             width = function() return math.floor(api.nvim_get_option('columns') * 0.5) end,
             height = function() return math.floor(api.nvim_get_option('lines') * 0.8) end,
             col = function(dim)
-                return math.floor((api.nvim_get_option('columns') - dim.main_ui.width) / 2)
+                return math.floor((api.nvim_get_option('columns') - dim.main.width) / 2)
             end,
             row = function(dim)
-                return math.floor((api.nvim_get_option('lines') - dim.main_ui.height) / 2)
+                return math.floor((api.nvim_get_option('lines') - dim.main.height) / 2)
             end,
         },
         companion = {
@@ -23,12 +23,12 @@ local default_opts = {
                 return math.floor((api.nvim_get_option('columns') - dim.companion.width) / 2)
             end,
             row = function(dim)
-                return math.floor((api.nvim_get_option('lines') - dim.main_ui.height) / 2) + dim.main_ui.height + 2
+                return math.floor((api.nvim_get_option('lines') - dim.main.height) / 2) + dim.main.height + 2
             end,
         },
     },
 
-    main_ui = {
+    main = {
         setup_buf = function(buf) end,
     },
     companion = {
@@ -77,9 +77,9 @@ end
 
 local function calc_geom_dim(opts)
     return {
-        main_ui = {
-            width = num_or_call(opts.geom.main_ui.width),
-            height = num_or_call(opts.geom.main_ui.height),
+        main = {
+            width = num_or_call(opts.geom.main.width),
+            height = num_or_call(opts.geom.main.height),
         },
         companion = {
             width = num_or_call(opts.geom.companion.width),
@@ -178,36 +178,36 @@ function M.declare_ui(user_opts)
     local opts = vim.tbl_deep_extend('force', vim.deepcopy(default_opts), user_opts or {})
 
     local ui = {
-        main_ui = declare_ui_one(),
+        main = declare_ui_one(),
         companion = declare_ui_one(),
         -- background = declare_ui_one(),
     }
 
-    ui.main_ui.create_buf = function()
-        local buf = create_buf_with(ui.main_ui.states.buf_id)
+    ui.main.create_buf = function()
+        local buf = create_buf_with(ui.main.states.buf_id)
         if not buf then return end
 
-        if opts.main_ui and opts.main_ui.setup_buf and type(opts.main_ui.setup_buf) == 'function' then
-            opts.main_ui.setup_buf(buf)
+        if opts.main and opts.main.setup_buf and type(opts.main.setup_buf) == 'function' then
+            opts.main.setup_buf(buf)
         end
     end
 
-    ui.main_ui.open_float = function()
-        if ui.main_ui.states.win_id.get() then return end
+    ui.main.open_float = function()
+        if ui.main.states.win_id.get() then return end
 
-        local buf = ui.main_ui.states.buf_id.get()
+        local buf = ui.main.states.buf_id.get()
         if not buf then return end
 
         local dim = calc_geom_dim()
-        local pos = calc_geom_position_in(opts.geom.main_ui, dim)
+        local pos = calc_geom_position_in(opts.geom.main, dim)
         local geom = {
-            width = dim.main_ui.width,
-            height = dim.main_ui.height,
+            width = dim.main.width,
+            height = dim.main.height,
             col = pos.col,
             row = pos.row,
         }
 
-        local win = open_float_with(buf, geom, ui.main_ui.states.win_id)
+        local win = open_float_with(buf, geom, ui.main.states.win_id)
 
         local tab = api.nvim_get_current_tabpage()
         api.nvim_create_autocmd('WinClosed', {
@@ -253,9 +253,9 @@ function M.declare_ui(user_opts)
             group = augroup,
             pattern = tostring(win),
             callback = function()
-                local main_ui = ui.main_ui.states.win_id.get(tab)
-                if main_ui and api.nvim_win_is_valid(main_ui) then
-                    ui.main_ui.close()
+                local main = ui.main.states.win_id.get(tab)
+                if main and api.nvim_win_is_valid(main) then
+                    ui.main.close()
                 end
             end,
         })
