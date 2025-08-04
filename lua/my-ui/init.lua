@@ -40,6 +40,8 @@ local default_opts = {
 local last_active_win = mkstate.tab()
 
 local ui_win_table = {}
+local all_ui = {}
+
 local augroup = api.nvim_create_augroup("NaughieMyui", { clear = true })
 
 -- path should be `vim.fn.fnameescape`d before call
@@ -273,7 +275,15 @@ function M.declare_ui(user_opts)
         end
     end
 
+    table.insert(all_ui, ui)
+
     return ui
+end
+
+function M.close_all()
+    for _, ui in ipairs(all_ui) do
+        ui.main.close()
+    end
 end
 
 api.nvim_create_autocmd("WinLeave", {
