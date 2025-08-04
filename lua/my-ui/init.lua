@@ -30,6 +30,7 @@ local default_opts = {
 
     main = {
         setup_buf = function(buf) end,
+        close_on_companion_closed = false,
     },
     companion = {
         setup_buf = function(buf) end,
@@ -256,17 +257,19 @@ function M.declare_ui(user_opts)
 
         local win = open_float_with(buf, geom, ui.companion.states.win_id)
 
-        local tab = api.nvim_get_current_tabpage()
-        api.nvim_create_autocmd('WinClosed', {
-            group = augroup,
-            pattern = tostring(win),
-            callback = function()
-                local main = ui.main.states.win_id.get(tab)
-                if main and api.nvim_win_is_valid(main) then
-                    ui.main.close()
-                end
-            end,
-        })
+        if opts.main.close_on_companion_closed then
+            local tab = api.nvim_get_current_tabpage()
+            api.nvim_create_autocmd('WinClosed', {
+                group = augroup,
+                pattern = tostring(win),
+                callback = function()
+                    local main = ui.main.states.win_id.get(tab)
+                    if main and api.nvim_win_is_valid(main) then
+                        ui.main.close()
+                    end
+                end,
+            })
+        end
     end
 
     return ui
