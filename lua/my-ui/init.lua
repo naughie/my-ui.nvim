@@ -190,14 +190,15 @@ function M.declare_ui(user_opts)
         main = declare_ui_one(),
         companion = declare_ui_one(),
         -- background = declare_ui_one(),
+        opts = opts,
     }
 
     ui.main.create_buf = function()
         local buf = create_buf_with(ui.main.states.buf_id)
         if not buf then return end
 
-        if opts.main and opts.main.setup_buf and type(opts.main.setup_buf) == 'function' then
-            opts.main.setup_buf(buf)
+        if ui.opts.main and ui.opts.main.setup_buf and type(ui.opts.main.setup_buf) == 'function' then
+            ui.opts.main.setup_buf(buf)
         end
     end
 
@@ -207,8 +208,8 @@ function M.declare_ui(user_opts)
         local buf = ui.main.states.buf_id.get()
         if not buf then return end
 
-        local dim = calc_geom_dim(opts)
-        local pos = calc_geom_position_in(opts.geom.main, dim)
+        local dim = calc_geom_dim(ui.opts)
+        local pos = calc_geom_position_in(ui.opts.geom.main, dim)
         local geom = {
             width = dim.main.width,
             height = dim.main.height,
@@ -235,8 +236,8 @@ function M.declare_ui(user_opts)
         local buf = create_buf_with(ui.companion.states.buf_id)
         if not buf then return end
 
-        if opts.companion and opts.companion.setup_buf and type(opts.companion.setup_buf) == 'function' then
-            opts.companion.setup_buf(buf)
+        if ui.opts.companion and ui.opts.companion.setup_buf and type(ui.opts.companion.setup_buf) == 'function' then
+            ui.opts.companion.setup_buf(buf)
         end
     end
 
@@ -246,8 +247,8 @@ function M.declare_ui(user_opts)
         local buf = ui.companion.states.buf_id.get()
         if not buf then return end
 
-        local dim = calc_geom_dim(opts)
-        local pos = calc_geom_position_in(opts.geom.companion, dim)
+        local dim = calc_geom_dim(ui.opts)
+        local pos = calc_geom_position_in(ui.opts.geom.companion, dim)
         local geom = {
             width = dim.companion.width,
             height = dim.companion.height,
@@ -257,7 +258,7 @@ function M.declare_ui(user_opts)
 
         local win = open_float_with(buf, geom, ui.companion.states.win_id)
 
-        if opts.main.close_on_companion_closed then
+        if ui.opts.main.close_on_companion_closed then
             local tab = api.nvim_get_current_tabpage()
             api.nvim_create_autocmd('WinClosed', {
                 group = augroup,
