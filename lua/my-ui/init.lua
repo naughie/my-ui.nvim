@@ -7,23 +7,23 @@ local api = vim.api
 local default_opts = {
     geom = {
         main = {
-            width = function() return math.floor(api.nvim_get_option('columns') * 0.5) end,
-            height = function() return math.floor(api.nvim_get_option('lines') * 0.8) end,
+            width = function() return math.floor(api.nvim_get_option("columns") * 0.5) end,
+            height = function() return math.floor(api.nvim_get_option("lines") * 0.8) end,
             col = function(dim)
-                return math.floor((api.nvim_get_option('columns') - dim.main.width) / 2)
+                return math.floor((api.nvim_get_option("columns") - dim.main.width) / 2)
             end,
             row = function(dim)
-                return math.floor((api.nvim_get_option('lines') - dim.main.height) / 2)
+                return math.floor((api.nvim_get_option("lines") - dim.main.height) / 2)
             end,
         },
         companion = {
-            width = function() return math.floor(api.nvim_get_option('columns') * 0.5) end,
+            width = function() return math.floor(api.nvim_get_option("columns") * 0.5) end,
             height = 3,
             col = function(dim)
-                return math.floor((api.nvim_get_option('columns') - dim.companion.width) / 2)
+                return math.floor((api.nvim_get_option("columns") - dim.companion.width) / 2)
             end,
             row = function(dim)
-                return math.floor((api.nvim_get_option('lines') - dim.main.height) / 2) + dim.main.height + 2
+                return math.floor((api.nvim_get_option("lines") - dim.main.height) / 2) + dim.main.height + 2
             end,
         },
     },
@@ -40,11 +40,11 @@ local default_opts = {
 local last_active_win = mkstate.tab()
 
 local ui_win_table = {}
-local augroup = api.nvim_create_augroup('NaughieMyui', { clear = true })
+local augroup = api.nvim_create_augroup("NaughieMyui", { clear = true })
 
 -- path should be `vim.fn.fnameescape`d before call
 function M.open_file_into_current_win(path)
-    vim.cmd('edit! ' .. path)
+    vim.cmd("edit! " .. path)
 end
 
 -- path should be `vim.fn.fnameescape`d before call
@@ -75,9 +75,9 @@ local function ui_states()
 end
 
 local function num_or_call(n, arg)
-    if type(n) == 'number' then
+    if type(n) == "number" then
         return n
-    elseif type(n) == 'function' then
+    elseif type(n) == "function" then
         return n(arg)
     else
         return 0
@@ -106,19 +106,19 @@ end
 
 local function open_float_with(buf, geom, win_id_state)
     local new_win = api.nvim_open_win(buf, true, {
-        relative = 'editor',
+        relative = "editor",
         width = geom.width,
         height = geom.height,
         col = geom.col,
         row = geom.row,
-        style = 'minimal',
-        border = 'rounded',
+        style = "minimal",
+        border = "rounded",
     })
     win_id_state.set(new_win)
     ui_win_table[new_win] = true
 
     local tab = api.nvim_get_current_tabpage()
-    api.nvim_create_autocmd('WinClosed', {
+    api.nvim_create_autocmd("WinClosed", {
         group = augroup,
         pattern = tostring(new_win),
         callback = function()
@@ -134,7 +134,7 @@ local function create_buf_with(buf_id_state)
     if buf_id_state.get() then return end
 
     local new_buf = api.nvim_create_buf(false, true)
-    api.nvim_buf_set_option(new_buf, 'bufhidden', 'hide')
+    api.nvim_buf_set_option(new_buf, "bufhidden", "hide")
     buf_id_state.set(new_buf)
 
     return new_buf
@@ -184,7 +184,7 @@ local function declare_ui_one()
 end
 
 function M.declare_ui(user_opts)
-    local opts = vim.tbl_deep_extend('force', vim.deepcopy(default_opts), user_opts or {})
+    local opts = vim.tbl_deep_extend("force", vim.deepcopy(default_opts), user_opts or {})
 
     local ui = {
         main = declare_ui_one(),
@@ -197,7 +197,7 @@ function M.declare_ui(user_opts)
         local buf = create_buf_with(ui.main.states.buf_id)
         if not buf then return end
 
-        if ui.opts.main and ui.opts.main.setup_buf and type(ui.opts.main.setup_buf) == 'function' then
+        if ui.opts.main and ui.opts.main.setup_buf and type(ui.opts.main.setup_buf) == "function" then
             ui.opts.main.setup_buf(buf)
         end
     end
@@ -220,7 +220,7 @@ function M.declare_ui(user_opts)
         local win = open_float_with(buf, geom, ui.main.states.win_id)
 
         local tab = api.nvim_get_current_tabpage()
-        api.nvim_create_autocmd('WinClosed', {
+        api.nvim_create_autocmd("WinClosed", {
             group = augroup,
             pattern = tostring(win),
             callback = function()
@@ -236,7 +236,7 @@ function M.declare_ui(user_opts)
         local buf = create_buf_with(ui.companion.states.buf_id)
         if not buf then return end
 
-        if ui.opts.companion and ui.opts.companion.setup_buf and type(ui.opts.companion.setup_buf) == 'function' then
+        if ui.opts.companion and ui.opts.companion.setup_buf and type(ui.opts.companion.setup_buf) == "function" then
             ui.opts.companion.setup_buf(buf)
         end
     end
@@ -260,7 +260,7 @@ function M.declare_ui(user_opts)
 
         if ui.opts.main.close_on_companion_closed then
             local tab = api.nvim_get_current_tabpage()
-            api.nvim_create_autocmd('WinClosed', {
+            api.nvim_create_autocmd("WinClosed", {
                 group = augroup,
                 pattern = tostring(win),
                 callback = function()
@@ -276,7 +276,7 @@ function M.declare_ui(user_opts)
     return ui
 end
 
-api.nvim_create_autocmd('WinLeave', {
+api.nvim_create_autocmd("WinLeave", {
     group = augroup,
     callback = function()
         local win = api.nvim_get_current_win()
