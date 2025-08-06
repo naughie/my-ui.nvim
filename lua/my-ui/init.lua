@@ -195,12 +195,15 @@ function M.declare_ui(user_opts)
         opts = opts,
     }
 
-    ui.main.create_buf = function()
+    ui.main.create_buf = function(setup_buf)
         local buf = create_buf_with(ui.main.states.buf_id)
         if not buf then return end
 
         if ui.opts.main and ui.opts.main.setup_buf and type(ui.opts.main.setup_buf) == "function" then
             ui.opts.main.setup_buf(buf)
+        end
+        if setup_buf then
+            setup_buf(buf)
         end
     end
 
@@ -234,12 +237,15 @@ function M.declare_ui(user_opts)
         })
     end
 
-    ui.companion.create_buf = function()
+    ui.companion.create_buf = function(setup_buf)
         local buf = create_buf_with(ui.companion.states.buf_id)
         if not buf then return end
 
         if ui.opts.companion and ui.opts.companion.setup_buf and type(ui.opts.companion.setup_buf) == "function" then
             ui.opts.companion.setup_buf(buf)
+        end
+        if setup_buf then
+            setup_buf(buf)
         end
     end
 
