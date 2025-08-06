@@ -153,6 +153,7 @@ local function declare_ui_one()
         local buf = ui.states.buf_id.get()
         if not buf then return end
         api.nvim_buf_delete(buf, { force = true })
+        ui.states.buf_id.clear()
     end
 
     ui.lines = function(start, end_idx, strict_indexing)
