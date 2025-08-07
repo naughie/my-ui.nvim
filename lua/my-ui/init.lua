@@ -208,7 +208,7 @@ function M.declare_ui(user_opts)
         end
     end
 
-    ui.main.open_float = function()
+    ui.main.open_float = function(setup_win)
         if ui.main.states.win_id.get() then return end
 
         local buf = ui.main.states.buf_id.get()
@@ -236,6 +236,10 @@ function M.declare_ui(user_opts)
                 end
             end,
         })
+
+        if setup_win then
+            setup_win(win, buf)
+        end
     end
 
     ui.companion.create_buf = function(setup_buf)
@@ -250,7 +254,7 @@ function M.declare_ui(user_opts)
         end
     end
 
-    ui.companion.open_float = function()
+    ui.companion.open_float = function(setup_win)
         if ui.companion.states.win_id.get() then return end
 
         local buf = ui.companion.states.buf_id.get()
@@ -279,6 +283,10 @@ function M.declare_ui(user_opts)
                     end
                 end,
             })
+        end
+
+        if setup_win then
+            setup_win(win, buf)
         end
     end
 
