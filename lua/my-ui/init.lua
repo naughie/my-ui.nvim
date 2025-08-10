@@ -196,6 +196,11 @@ function M.declare_ui(user_opts)
         opts = opts,
     }
 
+    ui.update_opts = function(new_opts)
+        local merged = vim.tbl_deep_extend("force", vim.deepcopy(ui.opts), new_opts or {})
+        ui.opts = merged
+    end
+
     ui.main.create_buf = function(setup_buf)
         local buf = create_buf_with(ui.main.states.buf_id)
         if not buf then return end
