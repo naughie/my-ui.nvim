@@ -149,11 +149,11 @@ local function declare_ui_one()
         return ui.states.buf_id.get()
     end
 
-    ui.delete_buf = function()
-        local buf = ui.states.buf_id.get()
+    ui.delete_buf = function(tab)
+        local buf = ui.states.buf_id.get(tab)
         if not buf then return end
         api.nvim_buf_delete(buf, { force = true })
-        ui.states.buf_id.clear()
+        ui.states.buf_id.clear(tab)
     end
 
     ui.lines = function(start, end_idx, strict_indexing)
@@ -174,12 +174,14 @@ local function declare_ui_one()
 
     ui.focus = function()
         local win = ui.states.win_id.get()
-        if win then api.nvim_set_current_win(win) end
+        if not win then return end
+        api.nvim_set_current_win(win)
+        return true
     end
 
-    ui.close = function()
-        local win = ui.states.win_id.get()
-        ui.states.win_id.clear()
+    ui.close = function(tab)
+        local win = ui.states.win_id.get(tab)
+        ui.states.win_id.clear(tab)
         if win then api.nvim_win_close(win, true) end
     end
 
@@ -201,6 +203,17 @@ function M.declare_ui(user_opts)
         ui.opts = merged
     end
 
+    ui.main.calc_geom = function()
+        local dim = calc_geom_dim(ui.opts)
+        local pos = calc_geom_position_in(ui.opts.geom.main, dim)
+        return {
+            width = dim.main.width,
+            height = dim.main.height,
+            col = pos.col,
+            row = pos.row,
+        }
+    end
+
     ui.main.create_buf = function(setup_buf)
         local buf = create_buf_with(ui.main.states.buf_id)
         if not buf then return end
@@ -219,15 +232,7 @@ function M.declare_ui(user_opts)
         local buf = ui.main.states.buf_id.get()
         if not buf then return end
 
-        local dim = calc_geom_dim(ui.opts)
-        local pos = calc_geom_position_in(ui.opts.geom.main, dim)
-        local geom = {
-            width = dim.main.width,
-            height = dim.main.height,
-            col = pos.col,
-            row = pos.row,
-        }
-
+        local geom = ui.main.calc_geom()
         local win = open_float_with(buf, geom, ui.main.states.win_id)
 
         local tab = api.nvim_get_current_tabpage()
@@ -239,7 +244,7 @@ function M.declare_ui(user_opts)
 
                 local companion = ui.companion.states.win_id.get(tab)
                 if companion and api.nvim_win_is_valid(companion) then
-                    ui.companion.close()
+                    ui.companion.close(tab)
                 end
             end,
         })
@@ -247,6 +252,17 @@ function M.declare_ui(user_opts)
         if setup_win then
             setup_win(win, buf)
         end
+    end
+
+    ui.companion.calc_geom = function()
+        local dim = calc_geom_dim(ui.opts)
+        local pos = calc_geom_position_in(ui.opts.geom.companion, dim)
+        return {
+            width = dim.companion.width,
+            height = dim.companion.height,
+            col = pos.col,
+            row = pos.row,
+        }
     end
 
     ui.companion.create_buf = function(setup_buf)
@@ -267,15 +283,7 @@ function M.declare_ui(user_opts)
         local buf = ui.companion.states.buf_id.get()
         if not buf then return end
 
-        local dim = calc_geom_dim(ui.opts)
-        local pos = calc_geom_position_in(ui.opts.geom.companion, dim)
-        local geom = {
-            width = dim.companion.width,
-            height = dim.companion.height,
-            col = pos.col,
-            row = pos.row,
-        }
-
+        local geom = ui.companion.calc_geom()
         local win = open_float_with(buf, geom, ui.companion.states.win_id)
 
         local tab = api.nvim_get_current_tabpage()
@@ -288,7 +296,7 @@ function M.declare_ui(user_opts)
                 if ui.opts.main.close_on_companion_closed then
                     local main = ui.main.states.win_id.get(tab)
                     if main and api.nvim_win_is_valid(main) then
-                        ui.main.close()
+                        ui.main.close(tab)
                     end
                 end
             end,
