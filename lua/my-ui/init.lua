@@ -1,5 +1,12 @@
 local M = {}
 
+local bg_pat = {
+    hor = "⑅୨୧⑅",
+    ver = { "│", "*" },
+    corner = "🎀",
+}
+M.bg_pat = bg_pat
+
 local mkstate = require("glocal-states")
 
 local api = vim.api
@@ -23,7 +30,7 @@ local default_opts = {
                 return math.floor((api.nvim_get_option("columns") - dim.companion.width) / 2)
             end,
             row = function(dim)
-                return math.floor((api.nvim_get_option("lines") - dim.main.height) / 2) + dim.main.height + 2
+                return math.floor((api.nvim_get_option("lines") - dim.main.height) / 2) + dim.main.height + 1
             end,
         },
     },
@@ -153,7 +160,10 @@ local function calc_geom_position_in(opts, dim)
     }
 end
 
-local function open_float_with(buf, geom, win_id_state)
+local function open_float_with(buf, geom, win_id_state, nofocus)
+    local focusable = true
+    if nofocus then focusable = false end
+
     local new_win = api.nvim_open_win(buf, true, {
         relative = "editor",
         width = geom.width,
@@ -161,7 +171,8 @@ local function open_float_with(buf, geom, win_id_state)
         col = geom.col,
         row = geom.row,
         style = "minimal",
-        border = "rounded",
+        border = "none",
+        focusable = focusable,
     })
     win_id_state.set(new_win)
     ui_win_table[new_win] = true
@@ -189,8 +200,50 @@ local function create_buf_with(buf_id_state)
     return new_buf
 end
 
+local function open_bg_with(geom, bg_states)
+    create_buf_with(bg_states.buf_id)
+    local buf = bg_states.buf_id.get()
+    if not buf then return end
+
+    local pat_hor_len = vim.fn.strwidth(bg_pat.hor)
+    local copies = math.floor(geom.width / pat_hor_len) + 1
+    local pat_width = pat_hor_len * copies
+
+    local diff = pat_width - geom.width
+    local col_offset = math.floor(diff / 2)
+
+    local pat_cor_len = vim.fn.strwidth(bg_pat.corner)
+
+    local hor = bg_pat.corner .. string.rep(bg_pat.hor, copies) .. bg_pat.corner
+    local ver = {}
+    for _, ver_pat in ipairs(bg_pat.ver) do
+        local offset = pat_cor_len - vim.fn.strwidth(ver_pat)
+        table.insert(ver, ver_pat .. string.rep(" ", pat_width + offset * 2) .. ver_pat)
+    end
+
+    local lines = {}
+    table.insert(lines, hor)
+    for i = 1, geom.height do
+        local idx = i % #ver
+        if idx == 0 then idx = #ver end
+        table.insert(lines, ver[idx])
+    end
+    table.insert(lines, hor)
+
+    api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+    local bg_geom = {
+        width = pat_width + pat_cor_len * 2,
+        height = geom.height + 2,
+        col = geom.col - pat_cor_len - col_offset,
+        row = geom.row - 1,
+    }
+
+    open_float_with(buf, bg_geom, bg_states.win_id, true)
+end
+
 local function declare_ui_one()
-    local ui = { states = ui_states() }
+    local ui = { states = ui_states(), bg_states = ui_states() }
 
     ui.get_buf = function()
         return ui.states.buf_id.get()
@@ -226,10 +279,17 @@ local function declare_ui_one()
         return true
     end
 
+    ui.close_bg = function(tab)
+        local win = ui.bg_states.win_id.get(tab)
+        ui.bg_states.win_id.clear(tab)
+        if win then api.nvim_win_close(win, true) end
+    end
+
     ui.close = function(tab)
         local win = ui.states.win_id.get(tab)
         ui.states.win_id.clear(tab)
         if win then api.nvim_win_close(win, true) end
+        ui.close_bg(tab)
     end
 
     return ui
@@ -292,6 +352,7 @@ function M.declare_ui(user_opts)
         if not buf then return end
 
         local geom = ui.main.calc_geom()
+        open_bg_with(geom, ui.main.bg_states)
         local win = open_float_with(buf, geom, ui.main.states.win_id)
 
         local tab = api.nvim_get_current_tabpage()
@@ -304,6 +365,7 @@ function M.declare_ui(user_opts)
             callback = function()
                 ui.main.states.win_id.clear(tab)
                 ui_stack_remove(win, tab)
+                ui.main.close_bg(tab)
 
                 local companion = ui.companion.states.win_id.get(tab)
                 if companion and api.nvim_win_is_valid(companion) then
@@ -347,6 +409,7 @@ function M.declare_ui(user_opts)
         if not buf then return end
 
         local geom = ui.companion.calc_geom()
+        open_bg_with(geom, ui.companion.bg_states)
         local win = open_float_with(buf, geom, ui.companion.states.win_id)
 
         local tab = api.nvim_get_current_tabpage()
@@ -355,6 +418,7 @@ function M.declare_ui(user_opts)
             pattern = tostring(win),
             callback = function()
                 ui.companion.states.win_id.clear(tab)
+                ui.companion.close_bg(tab)
 
                 if ui.opts.main.close_on_companion_closed then
                     local main = ui.main.states.win_id.get(tab)
