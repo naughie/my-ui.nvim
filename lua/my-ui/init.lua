@@ -38,6 +38,7 @@ local default_opts = {
 }
 
 local last_active_win = mkstate.tab()
+local ui_stack = mkstate.tab()
 
 local ui_win_table = {}
 local all_ui = {}
@@ -67,6 +68,52 @@ function M.open_file_into_last_active_win(path)
     api.nvim_set_current_win(win)
     M.open_file_into_current_win(path)
     return true
+end
+
+local function ui_stack_push(win, tab)
+    local stack = ui_stack.get(tab)
+    if stack then
+        table.insert(stack, win)
+    else
+        ui_stack.set({ win }, tab)
+    end
+end
+local function ui_stack_remove(win, tab)
+    local stack = ui_stack.get(tab)
+    if not stack or #stack == 0 then return end
+
+    local found_index = nil
+    for i = 1, #stack do
+        if stack[i] == win then
+            found_index = i
+            break
+        end
+    end
+    if not found_index then return end
+    table.remove(stack, found_index)
+end
+local function ui_stack_move_last(win, tab)
+    ui_stack_remove(win, tab)
+    local stack = ui_stack.get(tab)
+    if stack then
+        table.insert(stack, win)
+    else
+        ui_stack.set({ win }, tab)
+    end
+end
+
+function M.focus_on_last_active_ui()
+    local stack = ui_stack.get()
+    if not stack or #stack == 0 then return end
+    local win = stack[#stack]
+    if not api.nvim_win_is_valid(win) then return end
+
+    api.nvim_set_current_win(win)
+    return true
+end
+
+function M.inspect_ui_stack(tab)
+    return ui_stack.get(tab)
 end
 
 local function ui_states()
@@ -218,6 +265,18 @@ function M.declare_ui(user_opts)
         local buf = create_buf_with(ui.main.states.buf_id)
         if not buf then return end
 
+        local tab = api.nvim_get_current_tabpage()
+        api.nvim_create_autocmd("WinEnter", {
+            group = augroup,
+            buffer = buf,
+            callback = function()
+                local win = ui.main.states.win_id.get(tab)
+                if win then
+                    ui_stack_move_last(win, tab)
+                end
+            end,
+        })
+
         if ui.opts.main and ui.opts.main.setup_buf and type(ui.opts.main.setup_buf) == "function" then
             ui.opts.main.setup_buf(buf)
         end
@@ -236,11 +295,15 @@ function M.declare_ui(user_opts)
         local win = open_float_with(buf, geom, ui.main.states.win_id)
 
         local tab = api.nvim_get_current_tabpage()
+
+        ui_stack_push(win, tab)
+
         api.nvim_create_autocmd("WinClosed", {
             group = augroup,
             pattern = tostring(win),
             callback = function()
                 ui.main.states.win_id.clear(tab)
+                ui_stack_remove(win, tab)
 
                 local companion = ui.companion.states.win_id.get(tab)
                 if companion and api.nvim_win_is_valid(companion) then
@@ -305,6 +368,13 @@ function M.declare_ui(user_opts)
         if setup_win then
             setup_win(win, buf)
         end
+    end
+
+    local main_close = ui.main.close
+    ui.main.close = function(tab)
+        local win = ui.main.states.win_id.get(tab)
+        ui_stack_remove(win, tab)
+        main_close(tab)
     end
 
     table.insert(all_ui, ui)
