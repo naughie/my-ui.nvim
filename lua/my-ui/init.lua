@@ -42,6 +42,10 @@ local default_opts = {
     companion = {
         setup_buf = function(buf) end,
     },
+
+    background = {
+        hl_group = "FloatBorder",
+    },
 }
 
 local function build_bg_pat(geom)
@@ -264,7 +268,7 @@ local function create_buf_with(buf_id_state)
     return new_buf
 end
 
-local function open_bg_with(geom, bg_states)
+local function open_bg_with(geom, bg_states, hl_group)
     create_buf_with(bg_states.buf_id)
     local buf = bg_states.buf_id.get()
     if not buf then return end
@@ -282,7 +286,7 @@ local function open_bg_with(geom, bg_states)
 
     open_float_with(buf, bg_geom, bg_states.win_id, true)
     for _, hl in ipairs(bg.hl) do
-        api.nvim_buf_add_highlight(buf, hl_ns, "FloatBorder", hl.line, hl.from, hl.to)
+        api.nvim_buf_add_highlight(buf, hl_ns, hl_group, hl.line, hl.from, hl.to)
     end
 end
 
@@ -345,7 +349,6 @@ function M.declare_ui(user_opts)
     local ui = {
         main = declare_ui_one(),
         companion = declare_ui_one(),
-        -- background = declare_ui_one(),
         opts = opts,
     }
 
@@ -396,7 +399,7 @@ function M.declare_ui(user_opts)
         if not buf then return end
 
         local geom = ui.main.calc_geom()
-        open_bg_with(geom, ui.main.bg_states)
+        open_bg_with(geom, ui.main.bg_states, ui.opts.background.hl_group)
         local win = open_float_with(buf, geom, ui.main.states.win_id)
 
         local tab = api.nvim_get_current_tabpage()
@@ -453,7 +456,7 @@ function M.declare_ui(user_opts)
         if not buf then return end
 
         local geom = ui.companion.calc_geom()
-        open_bg_with(geom, ui.companion.bg_states)
+        open_bg_with(geom, ui.companion.bg_states, ui.opts.background.hl_group)
         local win = open_float_with(buf, geom, ui.companion.states.win_id)
 
         local tab = api.nvim_get_current_tabpage()
