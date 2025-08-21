@@ -286,13 +286,6 @@ function M.declare_ui(opts)
         end
     end
 
-    local main_close = ui.main.close
-    ui.main.close = function(tab)
-        local win = ui.main.states.win_id.get(tab)
-        states.ui_stack.remove(win, tab)
-        main_close(tab)
-    end
-
     states.all_ui.insert(ui)
 
     return ui

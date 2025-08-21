@@ -67,8 +67,8 @@ M.ui_stack = {
 
     focus = function()
         local stack = ui_stack.get()
-        if not stack or #stack == 0 then return end
-        local win = stack[#stack]
+        if not stack or #stack == 0 or #stack == 1 then return end
+        local win = stack[#stack - 1]
         if not api.nvim_win_is_valid(win) then return end
 
         api.nvim_set_current_win(win)
