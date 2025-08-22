@@ -44,6 +44,17 @@ local function calc_geom_position_in(opts, dim)
     }
 end
 
+local function modify_geom_with(with_geom, calc_default)
+    if not with_geom then
+        return calc_default()
+    elseif type(with_geom) == "function" then
+        local geom = calc_default()
+        return with_geom(geom)
+    else
+        return with_geom
+    end
+end
+
 local function open_float_with(buf, geom, win_id_state, nofocus)
     local focusable = true
     if nofocus then focusable = false end
@@ -162,15 +173,17 @@ function M.declare_ui(opts)
         ui.opts = merged
     end
 
-    ui.main.calc_geom = function()
-        local dim = calc_geom_dim(ui.opts)
-        local pos = calc_geom_position_in(ui.opts.geom.main, dim)
-        return {
-            width = dim.main.width,
-            height = dim.main.height,
-            col = pos.col,
-            row = pos.row,
-        }
+    ui.main.calc_geom = function(with_geom)
+        return modify_geom_with(with_geom, function()
+            local dim = calc_geom_dim(ui.opts)
+            local pos = calc_geom_position_in(ui.opts.geom.main, dim)
+            return {
+                width = dim.main.width,
+                height = dim.main.height,
+                col = pos.col,
+                row = pos.row,
+            }
+        end)
     end
 
     ui.main.create_buf = function(setup_buf)
@@ -197,13 +210,13 @@ function M.declare_ui(opts)
         end
     end
 
-    ui.main.open_float = function(setup_win)
+    ui.main.open_float = function(setup_win, with_geom)
         if ui.main.states.win_id.get() then return end
 
         local buf = ui.main.states.buf_id.get()
         if not buf then return end
 
-        local geom = ui.main.calc_geom()
+        local geom = ui.main.calc_geom(with_geom)
         open_bg_with(geom, ui.opts.background.pat, ui.main.bg_states, ui.opts.background.hl_group)
         local win = open_float_with(buf, geom, ui.main.states.win_id)
 
@@ -231,15 +244,17 @@ function M.declare_ui(opts)
         end
     end
 
-    ui.companion.calc_geom = function()
-        local dim = calc_geom_dim(ui.opts)
-        local pos = calc_geom_position_in(ui.opts.geom.companion, dim)
-        return {
-            width = dim.companion.width,
-            height = dim.companion.height,
-            col = pos.col,
-            row = pos.row,
-        }
+    ui.companion.calc_geom = function(with_geom)
+        return modify_geom_with(with_geom, function()
+            local dim = calc_geom_dim(ui.opts)
+            local pos = calc_geom_position_in(ui.opts.geom.companion, dim)
+            return {
+                width = dim.companion.width,
+                height = dim.companion.height,
+                col = pos.col,
+                row = pos.row,
+            }
+        end)
     end
 
     ui.companion.create_buf = function(setup_buf)
@@ -254,13 +269,13 @@ function M.declare_ui(opts)
         end
     end
 
-    ui.companion.open_float = function(setup_win)
+    ui.companion.open_float = function(setup_win, with_geom)
         if ui.companion.states.win_id.get() then return end
 
         local buf = ui.companion.states.buf_id.get()
         if not buf then return end
 
-        local geom = ui.companion.calc_geom()
+        local geom = ui.companion.calc_geom(with_geom)
         open_bg_with(geom, ui.opts.background.pat, ui.companion.bg_states, ui.opts.background.hl_group)
         local win = open_float_with(buf, geom, ui.companion.states.win_id)
 
