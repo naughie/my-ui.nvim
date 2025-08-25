@@ -36,6 +36,7 @@ M.default_opts = {
 
     background = {
         hl_group = "FloatBorder",
+        hl_group_on_focus = "Visual",
 
         pat = {
             hor = "｡o♡｡o｡",

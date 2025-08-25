@@ -95,21 +95,38 @@ local function create_buf_with(buf_id_state)
     return new_buf
 end
 
-local function open_bg_with(geom, bg_pat, bg_states, hl_group)
+local function open_bg_with(geom, bg_pat, bg_states, hl_group, hl_group_focus)
     create_buf_with(bg_states.buf_id)
     local buf = bg_states.buf_id.get()
     if not buf then return end
 
     local bg_buf = bg.build(bg_pat, geom)
+    bg_states.hl.set(bg_buf.hl)
 
     api.nvim_buf_set_lines(buf, 0, -1, false, bg_buf.lines)
 
     open_float_with(buf, bg_buf, bg_states.win_id, true)
-    bg.add_highlight(bg_buf, buf, hl_group)
+    bg.add_highlight(bg_buf.hl, buf, hl_group, hl_group_focus)
+end
+
+local function delete_bg_focus(bg_states, tab)
+    local buf = bg_states.buf_id.get(tab)
+    if not buf then return end
+    bg.clear_focus_highlight(buf)
+end
+
+local function restore_bg_focus(bg_states, hl_group_focus)
+    local buf = bg_states.buf_id.get()
+    if not buf then return end
+    local bg_hl = bg_states.hl.get()
+    if not bg_hl then return end
+
+    bg.restore_focus_highlight(bg_hl, buf, hl_group_focus)
 end
 
 local function declare_ui_common()
     local ui = { states = ui_states(), bg_states = ui_states() }
+    ui.bg_states.hl = mkstate.tab()
 
     ui.get_buf = function()
         return ui.states.buf_id.get()
@@ -138,11 +155,12 @@ local function declare_ui_common()
         return ui.states.win_id.get()
     end
 
-    ui.focus = function()
+    ui.focus = function(hl_group_on_focus)
         local win = ui.states.win_id.get()
         if not win then return end
         local bg_win = ui.bg_states.win_id.get()
         if bg_win then api.nvim_set_current_win(bg_win) end
+        restore_bg_focus(ui.bg_states, hl_group_on_focus)
 
         vim.schedule(function()
             api.nvim_set_current_win(win)
@@ -203,8 +221,16 @@ function M.declare_ui(opts)
             callback = function()
                 local win = ui.main.states.win_id.get(tab)
                 if win then
-                    states.ui_stack.move_last(win, tab)
+                    states.ui_stack.move_last(ui.main, win, tab)
                 end
+            end,
+        })
+
+        api.nvim_create_autocmd("WinLeave", {
+            group = augroup,
+            buffer = buf,
+            callback = function()
+                delete_bg_focus(ui.main.bg_states, tab)
             end,
         })
 
@@ -223,12 +249,12 @@ function M.declare_ui(opts)
         if not buf then return end
 
         local geom = ui.main.calc_geom(with_geom)
-        open_bg_with(geom, ui.opts.background.pat, ui.main.bg_states, ui.opts.background.hl_group)
+        open_bg_with(geom, ui.opts.background.pat, ui.main.bg_states, ui.opts.background.hl_group, ui.opts.background.hl_group_on_focus)
         local win = open_float_with(buf, geom, ui.main.states.win_id)
 
         local tab = api.nvim_get_current_tabpage()
 
-        states.ui_stack.push(win, tab)
+        states.ui_stack.push(ui.main, win, tab)
 
         api.nvim_create_autocmd("WinClosed", {
             group = augroup,
@@ -267,6 +293,16 @@ function M.declare_ui(opts)
         local buf = create_buf_with(ui.companion.states.buf_id)
         if not buf then return end
 
+        local tab = api.nvim_get_current_tabpage()
+
+        api.nvim_create_autocmd("WinLeave", {
+            group = augroup,
+            buffer = buf,
+            callback = function()
+                delete_bg_focus(ui.companion.bg_states, tab)
+            end,
+        })
+
         if ui.opts.companion and ui.opts.companion.setup_buf and type(ui.opts.companion.setup_buf) == "function" then
             ui.opts.companion.setup_buf(buf)
         end
@@ -282,7 +318,7 @@ function M.declare_ui(opts)
         if not buf then return end
 
         local geom = ui.companion.calc_geom(with_geom)
-        open_bg_with(geom, ui.opts.background.pat, ui.companion.bg_states, ui.opts.background.hl_group)
+        open_bg_with(geom, ui.opts.background.pat, ui.companion.bg_states, ui.opts.background.hl_group, ui.opts.background.hl_group_on_focus)
         local win = open_float_with(buf, geom, ui.companion.states.win_id)
 
         local tab = api.nvim_get_current_tabpage()
@@ -305,6 +341,15 @@ function M.declare_ui(opts)
         if setup_win then
             setup_win(win, buf)
         end
+    end
+
+    local main_focus = ui.main.focus
+    ui.main.focus = function()
+        main_focus(ui.opts.background.hl_group_on_focus)
+    end
+    local companion_focus = ui.companion.focus
+    ui.companion.focus = function()
+        companion_focus(ui.opts.background.hl_group_on_focus)
     end
 
     states.all_ui.insert(ui)

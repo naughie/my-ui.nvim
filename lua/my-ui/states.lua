@@ -10,12 +10,13 @@ local all_ui = {}
 
 local api = vim.api
 
-local function ui_stack_push(win, tab)
+local function ui_stack_push(ui, win, tab)
     local stack = ui_stack.get(tab)
+    local item = { ui = ui, win = win }
     if stack then
-        table.insert(stack, win)
+        table.insert(stack, item)
     else
-        ui_stack.set({ win }, tab)
+        ui_stack.set({ item }, tab)
     end
 end
 local function ui_stack_remove(win, tab)
@@ -24,7 +25,7 @@ local function ui_stack_remove(win, tab)
 
     local found_index = nil
     for i = 1, #stack do
-        if stack[i] == win then
+        if stack[i].win == win then
             found_index = i
             break
         end
@@ -32,13 +33,14 @@ local function ui_stack_remove(win, tab)
     if not found_index then return end
     table.remove(stack, found_index)
 end
-local function ui_stack_move_last(win, tab)
+local function ui_stack_move_last(ui, win, tab)
     ui_stack_remove(win, tab)
     local stack = ui_stack.get(tab)
+    local item = { ui = ui, win = win }
     if stack then
-        table.insert(stack, win)
+        table.insert(stack, item)
     else
-        ui_stack.set({ win }, tab)
+        ui_stack.set({ item }, tab)
     end
 end
 
@@ -68,11 +70,10 @@ M.ui_stack = {
     focus = function()
         local stack = ui_stack.get()
         if not stack or #stack == 0 or #stack == 1 then return end
-        local win = stack[#stack - 1]
-        if not api.nvim_win_is_valid(win) then return end
+        local item = stack[#stack - 1]
+        if not api.nvim_win_is_valid(item.win) then return end
 
-        api.nvim_set_current_win(win)
-        return true
+        return item.ui.focus()
     end,
 
     inspect = function(tab)

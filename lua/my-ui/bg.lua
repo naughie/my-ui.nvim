@@ -20,11 +20,11 @@ function M.build(bg_pat, geom)
 
     local max_ver_width = { left = 0, right = 0 }
     for _, pat in ipairs(bg_pat.ver.left) do
-        local max_width = math.max(string.len(pat), max_ver_width.left)
+        local max_width = math.max(vim.fn.strwidth(pat), max_ver_width.left)
         max_ver_width.left = max_width
     end
     for _, pat in ipairs(bg_pat.ver.right) do
-        local max_width = math.max(string.len(pat), max_ver_width.right)
+        local max_width = math.max(vim.fn.strwidth(pat), max_ver_width.right)
         max_ver_width.right = max_width
     end
 
@@ -49,8 +49,10 @@ function M.build(bg_pat, geom)
         table.insert(lines, l_pat .. string.rep(" ", pat_width + offset) .. r_pat)
 
         local total_width = string.len(l_pat) + string.len(r_pat) + pat_width + offset
-        table.insert(hl, { line = i, from = 0, to = max_ver_width.left })
-        table.insert(hl, { line = i, from = total_width - max_ver_width.right, to = total_width })
+        local l_width = string.len(l_pat) + max_ver_width.left - vim.fn.strwidth(l_pat)
+        local r_width = string.len(r_pat) + max_ver_width.right - vim.fn.strwidth(r_pat)
+        table.insert(hl, { line = i, from = 0, to = l_width })
+        table.insert(hl, { line = i, from = total_width - r_width, to = total_width })
     end
     table.insert(lines, hor)
     table.insert(hl, { line = base_height + 1, from = 0, to = -1 })
@@ -66,9 +68,23 @@ function M.build(bg_pat, geom)
 end
 
 local hl_ns = api.nvim_create_namespace("naughie_myui_bg_hl")
-function M.add_highlight(bg, buf, hl_group)
-    for _, hl in ipairs(bg.hl) do
-        api.nvim_buf_add_highlight(buf, hl_ns, hl_group, hl.line, hl.from, hl.to)
+local hl_ns_focus = api.nvim_create_namespace("naughie_myui_bg_hl_on_focus")
+
+function M.add_highlight(bg_hl, buf, hl_group, hl_group_focus)
+    for _, hl in ipairs(bg_hl) do
+        vim.hl.range(buf, hl_ns, hl_group, { hl.line, hl.from }, { hl.line, hl.to }, {})
+        vim.hl.range(buf, hl_ns_focus, hl_group_focus, { hl.line, hl.from }, { hl.line, hl.to }, {})
+    end
+end
+
+function M.clear_focus_highlight(buf)
+    if not api.nvim_buf_is_valid(buf) then return end
+    api.nvim_buf_clear_namespace(buf, hl_ns_focus, 0, -1)
+end
+
+function M.restore_focus_highlight(bg_hl, buf, hl_group_focus)
+    for _, hl in ipairs(bg_hl) do
+        vim.hl.range(buf, hl_ns_focus, hl_group_focus, { hl.line, hl.from }, { hl.line, hl.to }, {})
     end
 end
 
