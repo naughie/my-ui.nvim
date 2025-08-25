@@ -101,12 +101,17 @@ local function open_bg_with(geom, bg_pat, bg_states, hl_group, hl_group_focus)
     if not buf then return end
 
     local bg_buf = bg.build(bg_pat, geom)
-    bg_states.hl.set(bg_buf.hl)
+    bg_states.bg.set(bg_buf)
 
     api.nvim_buf_set_lines(buf, 0, -1, false, bg_buf.lines)
 
-    open_float_with(buf, bg_buf, bg_states.win_id, true)
-    bg.add_highlight(bg_buf.hl, buf, hl_group, hl_group_focus)
+    local win = open_float_with(buf, bg_buf, bg_states.win_id, true)
+    local ns = api.nvim_create_namespace("")
+    api.nvim_win_set_hl_ns(win, ns)
+
+    bg.define_tick_highlight(ns, hl_group_focus)
+
+    bg.add_highlight(bg_buf, buf, hl_group, hl_group_focus)
 end
 
 local function delete_bg_focus(bg_states, tab)
@@ -118,7 +123,7 @@ end
 local function restore_bg_focus(bg_states, hl_group_focus)
     local buf = bg_states.buf_id.get()
     if not buf then return end
-    local bg_hl = bg_states.hl.get()
+    local bg_hl = bg_states.bg.get()
     if not bg_hl then return end
 
     bg.restore_focus_highlight(bg_hl, buf, hl_group_focus)
@@ -126,7 +131,7 @@ end
 
 local function declare_ui_common()
     local ui = { states = ui_states(), bg_states = ui_states() }
-    ui.bg_states.hl = mkstate.tab()
+    ui.bg_states.bg = mkstate.tab()
 
     ui.get_buf = function()
         return ui.states.buf_id.get()

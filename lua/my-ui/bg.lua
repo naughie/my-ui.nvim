@@ -64,17 +64,54 @@ function M.build(bg_pat, geom)
         col = geom.col - pat_cor_len - col_offset - 1,
         row = geom.row - 2,
         hl = hl,
+        pat = bg_pat,
     }
 end
 
 local hl_ns = api.nvim_create_namespace("naughie_myui_bg_hl")
 local hl_ns_focus = api.nvim_create_namespace("naughie_myui_bg_hl_on_focus")
 
+local function add_ticks(bg_hl, buf)
+    local bg_pat = bg_hl.pat
+    local total_width = bg_hl.width
+
+    local l_above_len = string.len(bg_pat.ver.left[1])
+    api.nvim_buf_set_extmark(buf, hl_ns_focus, 1, l_above_len, {
+        virt_text = { { "\u{e0bc}", "NaughieMyuiUiTick" } },
+        virt_text_pos = "overlay",
+    })
+    local above_offset = l_above_len + (total_width - strwidth(bg_pat.ver.left[1]) - strwidth(bg_pat.ver.right[1]))
+    api.nvim_buf_set_extmark(buf, hl_ns_focus, 1, above_offset - 1, {
+        virt_text = { { "\u{e0be}", "NaughieMyuiUiTick" } },
+        virt_text_pos = "overlay",
+    })
+
+    local below_height = bg_hl.height - 2
+    local l_idx = below_height % #bg_pat.ver.left
+    if l_idx == 0 then l_idx = #bg_pat.ver.left end
+
+    local r_idx = below_height % #bg_pat.ver.right
+    if r_idx == 0 then r_idx = #bg_pat.ver.right end
+
+    local l_below_len = string.len(bg_pat.ver.left[l_idx])
+    api.nvim_buf_set_extmark(buf, hl_ns_focus, below_height, l_below_len, {
+        virt_text = { { "\u{e0b8}", "NaughieMyuiUiTick" } },
+        virt_text_pos = "overlay",
+    })
+    local below_offset = l_below_len + (total_width - strwidth(bg_pat.ver.left[l_idx]) - strwidth(bg_pat.ver.right[r_idx]))
+    api.nvim_buf_set_extmark(buf, hl_ns_focus, below_height, below_offset - 1, {
+        virt_text = { { "\u{e0ba}", "NaughieMyuiUiTick" } },
+        virt_text_pos = "overlay",
+    })
+end
+
 function M.add_highlight(bg_hl, buf, hl_group, hl_group_focus)
-    for _, hl in ipairs(bg_hl) do
+    for _, hl in ipairs(bg_hl.hl) do
         vim.hl.range(buf, hl_ns, hl_group, { hl.line, hl.from }, { hl.line, hl.to }, {})
         vim.hl.range(buf, hl_ns_focus, hl_group_focus, { hl.line, hl.from }, { hl.line, hl.to }, {})
     end
+
+    add_ticks(bg_hl, buf)
 end
 
 function M.clear_focus_highlight(buf)
@@ -83,9 +120,19 @@ function M.clear_focus_highlight(buf)
 end
 
 function M.restore_focus_highlight(bg_hl, buf, hl_group_focus)
-    for _, hl in ipairs(bg_hl) do
+    for _, hl in ipairs(bg_hl.hl) do
         vim.hl.range(buf, hl_ns_focus, hl_group_focus, { hl.line, hl.from }, { hl.line, hl.to }, {})
     end
+
+    add_ticks(bg_hl, buf)
+end
+
+function M.define_tick_highlight(local_ns, hl_group_focus)
+    local hl_info = api.nvim_get_hl(0, { name = hl_group_focus, link = false })
+    if not hl_info then return end
+    local bg = string.format("#%06x", hl_info.bg or 0)
+
+    api.nvim_set_hl(local_ns, "NaughieMyuiUiTick", { fg = bg })
 end
 
 return M
