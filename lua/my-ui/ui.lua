@@ -141,7 +141,13 @@ local function declare_ui_common()
     ui.focus = function()
         local win = ui.states.win_id.get()
         if not win then return end
-        api.nvim_set_current_win(win)
+        local bg_win = ui.bg_states.win_id.get()
+        if bg_win then api.nvim_set_current_win(bg_win) end
+
+        vim.schedule(function()
+            api.nvim_set_current_win(win)
+        end)
+
         return true
     end
 
