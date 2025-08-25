@@ -345,11 +345,11 @@ function M.declare_ui(opts)
 
     local main_focus = ui.main.focus
     ui.main.focus = function()
-        main_focus(ui.opts.background.hl_group_on_focus)
+        return main_focus(ui.opts.background.hl_group_on_focus)
     end
     local companion_focus = ui.companion.focus
     ui.companion.focus = function()
-        companion_focus(ui.opts.background.hl_group_on_focus)
+        return companion_focus(ui.opts.background.hl_group_on_focus)
     end
 
     states.all_ui.insert(ui)
