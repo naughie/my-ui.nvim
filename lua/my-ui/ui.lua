@@ -219,10 +219,16 @@ function M.declare_ui(opts)
             group = augroup,
             buffer = buf,
             callback = function()
-                local win = ui.main.states.win_id.get(tab)
-                if win then
-                    states.ui_stack.move_last(ui.main, win, tab)
-                end
+                vim.schedule(function()
+                    -- nvim_open_win may trigger WinEnter when opening another window
+                    local current_buf = api.nvim_get_current_buf()
+                    if current_buf ~= buf then return end
+
+                    local win = ui.main.states.win_id.get(tab)
+                    if win then
+                        states.ui_stack.move_last(ui.main, win, tab)
+                    end
+                end)
             end,
         })
 
