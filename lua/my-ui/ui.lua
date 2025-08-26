@@ -284,7 +284,9 @@ function M.declare_ui(opts)
             group = augroup,
             pattern = tostring(win),
             callback = function()
-                ui.main.states.win_id.clear(tab)
+                ui.main.states.win_id.clear_if(function(value)
+                    return value == win
+                end, tab)
                 states.ui_stack.remove(win, tab)
                 ui.main.close_bg(tab)
 
@@ -350,7 +352,9 @@ function M.declare_ui(opts)
             group = augroup,
             pattern = tostring(win),
             callback = function()
-                ui.companion.states.win_id.clear(tab)
+                ui.companion.states.win_id.clear_if(function(value)
+                    return value == win
+                end, tab)
                 ui.companion.close_bg(tab)
 
                 if ui.opts.main.close_on_companion_closed then
