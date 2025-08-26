@@ -69,7 +69,7 @@ local function open_float_with(buf, geom, win_id_state, nofocus)
         border = "none",
         focusable = focusable,
     })
-    win_id_state.set(new_win)
+    local old_win = win_id_state.set(new_win)
     states.ui_win_table.insert(new_win)
 
     local tab = api.nvim_get_current_tabpage()
@@ -77,12 +77,14 @@ local function open_float_with(buf, geom, win_id_state, nofocus)
         group = augroup,
         pattern = tostring(new_win),
         callback = function()
-            win_id_state.clear(tab)
+            win_id_state.clear_if(function(value)
+                return value == new_win
+            end, tab)
             states.ui_win_table.remove(new_win)
         end,
     })
 
-    return new_win
+    return new_win, old_win
 end
 
 local function create_buf_with(buf_id_state)
@@ -108,6 +110,7 @@ local function open_bg_with(geom, bg_pat, bg_states, hl_group, hl_group_focus)
     local win = open_float_with(buf, bg_buf, bg_states.win_id, true)
     local ns = api.nvim_create_namespace("")
     api.nvim_win_set_hl_ns(win, ns)
+    bg_states.hl_ns.set(ns)
 
     bg.define_tick_highlight(ns, hl_group_focus)
 
@@ -120,18 +123,29 @@ local function delete_bg_focus(bg_states, tab)
     bg.clear_focus_highlight(buf)
 end
 
-local function restore_bg_focus(bg_states, hl_group_focus)
+local function redraw_bg(bg_states, hl_group, hl_group_focus)
     local buf = bg_states.buf_id.get()
     if not buf then return end
-    local bg_hl = bg_states.bg.get()
-    if not bg_hl then return end
 
-    bg.restore_focus_highlight(bg_hl, buf, hl_group_focus)
+    local bg_buf = bg_states.bg.get()
+    if not bg_buf then return end
+
+    local win, old_win = open_float_with(buf, bg_buf, bg_states.win_id, true)
+    local ns = bg_states.hl_ns.get()
+    if not ns then return end
+    api.nvim_win_set_hl_ns(win, ns)
+
+    bg.add_highlight(bg_buf, buf, hl_group, hl_group_focus)
+
+    local win_before = bg_states.win_id.get()
+    if old_win and api.nvim_win_is_valid(old_win) then api.nvim_win_close(old_win, true) end
+    local win_after = bg_states.win_id.get()
 end
 
 local function declare_ui_common()
     local ui = { states = ui_states(), bg_states = ui_states() }
     ui.bg_states.bg = mkstate.tab()
+    ui.bg_states.hl_ns = mkstate.tab()
 
     ui.get_buf = function()
         return ui.states.buf_id.get()
@@ -160,12 +174,11 @@ local function declare_ui_common()
         return ui.states.win_id.get()
     end
 
-    ui.focus = function(hl_group_on_focus)
+    ui.focus = function(hl_group, hl_group_on_focus)
         local win = ui.states.win_id.get()
         if not win then return end
-        local bg_win = ui.bg_states.win_id.get()
-        if bg_win then api.nvim_set_current_win(bg_win) end
-        restore_bg_focus(ui.bg_states, hl_group_on_focus)
+
+        redraw_bg(ui.bg_states, hl_group, hl_group_on_focus)
 
         vim.schedule(function()
             api.nvim_set_current_win(win)
@@ -356,11 +369,11 @@ function M.declare_ui(opts)
 
     local main_focus = ui.main.focus
     ui.main.focus = function()
-        return main_focus(ui.opts.background.hl_group_on_focus)
+        return main_focus(ui.opts.background.hl_group, ui.opts.background.hl_group_on_focus)
     end
     local companion_focus = ui.companion.focus
     ui.companion.focus = function()
-        return companion_focus(ui.opts.background.hl_group_on_focus)
+        return companion_focus(ui.opts.background.hl_group, ui.opts.background.hl_group_on_focus)
     end
 
     states.all_ui.insert(ui)

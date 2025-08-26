@@ -119,14 +119,6 @@ function M.clear_focus_highlight(buf)
     api.nvim_buf_clear_namespace(buf, hl_ns_focus, 0, -1)
 end
 
-function M.restore_focus_highlight(bg_hl, buf, hl_group_focus)
-    for _, hl in ipairs(bg_hl.hl) do
-        vim.hl.range(buf, hl_ns_focus, hl_group_focus, { hl.line, hl.from }, { hl.line, hl.to }, {})
-    end
-
-    add_ticks(bg_hl, buf)
-end
-
 function M.define_tick_highlight(local_ns, hl_group_focus)
     local hl_info = api.nvim_get_hl(0, { name = hl_group_focus, link = false })
     if not hl_info then return end
