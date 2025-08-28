@@ -29,9 +29,11 @@ M.default_opts = {
     main = {
         setup_buf = function(buf) end,
         close_on_companion_closed = false,
+        hide_cursor = false,
     },
     companion = {
         setup_buf = function(buf) end,
+        hide_cursor = false,
     },
 
     background = {

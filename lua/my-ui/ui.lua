@@ -55,6 +55,35 @@ local function modify_geom_with(with_geom, calc_default)
     end
 end
 
+local nocursor_hl = "n:MyUiNoCursor"
+api.nvim_set_hl(0, "MyUiNoCursor", { reverse = true, blend = 100 })
+local guicursor_info = vim.api.nvim_get_option_info("guicursor")
+local default_guicursor = guicursor_info and guicursor_info.default
+
+local cursor_augroup = api.nvim_create_augroup("NaughieMyUiNoCursor", { clear = true })
+
+local function configure_hide_cursor(buf, unset_guicursor, restore_guicursor)
+    api.nvim_create_autocmd("WinEnter", {
+        group = cursor_augroup,
+        buffer = buf,
+        callback = function()
+            vim.schedule(function()
+                -- nvim_open_win may trigger WinEnter when opening another window
+                local current_buf = api.nvim_get_current_buf()
+                if current_buf ~= buf then return end
+
+                unset_guicursor()
+            end)
+        end,
+    })
+
+    api.nvim_create_autocmd("WinLeave", {
+        group = cursor_augroup,
+        buffer = buf,
+        callback = restore_guicursor,
+    })
+end
+
 local function open_float_with(buf, geom, win_id_state, nofocus)
     local focusable = true
     if nofocus then focusable = false end
@@ -144,6 +173,7 @@ end
 
 local function declare_ui_common()
     local ui = { states = ui_states(), bg_states = ui_states() }
+    ui.states.guicursor = nil
     ui.bg_states.bg = mkstate.tab()
     ui.bg_states.hl_ns = mkstate.tab()
 
@@ -198,6 +228,22 @@ local function declare_ui_common()
         ui.states.win_id.clear(tab)
         if win then api.nvim_win_close(win, true) end
         ui.close_bg(tab)
+    end
+
+    ui.hide_cursor = function()
+        local current_guicursor = vim.o.guicursor
+        if current_guicursor ~= nocursor_hl then ui.states.guicursor = current_guicursor end
+
+        vim.o.guicursor = nocursor_hl
+    end
+
+    ui.restore_cursor = function()
+        if not ui.states.guicursor or ui.states.guicursor == "" then
+            vim.o.guicursor = default_guicursor
+        else
+            vim.o.guicursor = ui.states.guicursor
+        end
+        ui.states.guicursor = nil
     end
 
     return ui
@@ -258,6 +304,10 @@ function M.declare_ui(opts)
             end,
         })
 
+        if ui.opts.main.hide_cursor then
+            configure_hide_cursor(buf, ui.main.hide_cursor, ui.main.restore_cursor)
+        end
+
         if ui.opts.main and ui.opts.main.setup_buf and type(ui.opts.main.setup_buf) == "function" then
             ui.opts.main.setup_buf(buf)
         end
@@ -297,6 +347,10 @@ function M.declare_ui(opts)
             end,
         })
 
+        if ui.opts.main.hide_cursor then
+            ui.main.hide_cursor()
+        end
+
         if setup_win then
             setup_win(win, buf)
         end
@@ -328,6 +382,10 @@ function M.declare_ui(opts)
                 delete_bg_focus(ui.companion.bg_states, tab)
             end,
         })
+
+        if ui.opts.companion.hide_cursor then
+            configure_hide_cursor(buf, ui.companion.hide_cursor, ui.companion.restore_cursor)
+        end
 
         if ui.opts.companion and ui.opts.companion.setup_buf and type(ui.opts.companion.setup_buf) == "function" then
             ui.opts.companion.setup_buf(buf)
@@ -365,6 +423,10 @@ function M.declare_ui(opts)
                 end
             end,
         })
+
+        if ui.opts.companion.hide_cursor then
+            ui.companion.hide_cursor()
+        end
 
         if setup_win then
             setup_win(win, buf)
