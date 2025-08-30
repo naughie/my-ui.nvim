@@ -117,6 +117,7 @@ function M.configure(ui)
             focusable = true,
         })
         local old_win = ui.states.win_id.set(new_win)
+        api.nvim_set_option_value("winfixbuf", true, { win = new_win })
 
         states.ui_win_table.insert(new_win)
 

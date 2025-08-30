@@ -22,6 +22,8 @@ local function open_float_with(buf, geom, win_id_state)
 
     local old_win = win_id_state.set(new_win)
 
+    api.nvim_set_option_value("winfixbuf", true, { win = new_win })
+
     states.ui_win_table.insert(new_win)
 
     api.nvim_create_autocmd("WinClosed", {
