@@ -9,8 +9,12 @@ local api = vim.api
 local augroup = api.nvim_create_augroup("NaughieMyui", { clear = true })
 
 -- path should be `vim.fn.fnameescape`d before call
-function M.open_file_into_current_win(path)
-    vim.cmd("edit! " .. path)
+function M.open_file_into_current_win(path, force)
+    if force then
+        vim.cmd("edit! " .. path)
+    else
+        vim.cmd("edit " .. path)
+    end
 end
 
 -- path should be `vim.fn.fnameescape`d before call
@@ -19,9 +23,9 @@ function M.focus_on_last_active_win()
 end
 
 -- path should be `vim.fn.fnameescape`d before call
-function M.open_file_into_last_active_win(path)
+function M.open_file_into_last_active_win(path, force)
     if states.last_active_win.focus() then
-        M.open_file_into_current_win(path)
+        M.open_file_into_current_win(path, force)
         return true
     end
 end
