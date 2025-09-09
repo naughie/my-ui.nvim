@@ -182,7 +182,9 @@ function M.declare_ui(opts)
     ui.main.open_float = function(setup_win, with_geom)
         internal_api.main.open_float(ui.opts, "main", with_geom, function(win, buf, tab)
             states.ui_stack.push(ui.main, win, tab)
-            setup_win(win, buf, tab)
+            if setup_win then
+                setup_win(win, buf, tab)
+            end
         end, function(tab, win)
             states.ui_stack.remove(win, tab)
 
