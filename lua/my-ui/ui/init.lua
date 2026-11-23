@@ -1,5 +1,6 @@
 local M = {}
 
+local bg = require("my-ui.bg")
 local states = require("my-ui.states")
 
 local config_fg = require("my-ui.ui.fg_win")
@@ -18,8 +19,26 @@ local function num_or_call(n, arg)
     end
 end
 
-local function calc_geom_dim(opts)
-    return {
+local function fit_width(bg_pat, width, columns)
+    local lo = 1
+    local hi = math.max(1, math.min(math.floor(width), columns))
+    local dim = { width = hi, height = 1 }
+    if bg.calc_dim(bg_pat, dim).width <= columns then return hi end
+
+    while lo < hi do
+        dim.width = math.ceil((lo + hi) / 2)
+        if bg.calc_dim(bg_pat, dim).width <= columns then
+            lo = dim.width
+        else
+            hi = dim.width - 1
+        end
+    end
+
+    return lo
+end
+
+local function calc_geom_dim(opts, bg_pat)
+    local dim = {
         main = {
             width = num_or_call(opts.main.width),
             height = num_or_call(opts.main.height),
@@ -29,6 +48,25 @@ local function calc_geom_dim(opts)
             height = num_or_call(opts.companion.height),
         },
     }
+
+    local columns = api.nvim_get_option("columns")
+    local rows = api.nvim_get_option("lines") - vim.o.cmdheight
+    local min_bg = bg.calc_dim(bg_pat, { width = 1, height = 1 })
+    local min_rows = 2 * min_bg.height - 1
+
+    local main, companion = dim.main, dim.companion
+    local width = fit_width(bg_pat, math.max(main.width, companion.width), columns)
+    main.width = math.max(1, math.min(math.floor(main.width), width))
+    companion.width = math.max(1, math.min(math.floor(companion.width), width))
+
+    local content_rows = rows - min_rows + 2
+    main.height = math.max(1, math.min(math.floor(main.height), content_rows - 1))
+    companion.height = math.max(1, math.min(math.floor(companion.height), content_rows - main.height))
+
+    main.bg = bg.calc_dim(bg_pat, main)
+    companion.bg = bg.calc_dim(bg_pat, companion)
+
+    return dim
 end
 
 local function calc_geom_position_in(opts, dim)
@@ -82,10 +120,11 @@ local function declare_ui_common()
         end
     end
 
-    internal_api.calc_geom = function(geom_opts, key, with_geom)
+    internal_api.calc_geom = function(geom_opts, bg_pat, key, with_geom)
         return modify_geom_with(with_geom, function()
-            local dim = calc_geom_dim(geom_opts)
+            local dim = calc_geom_dim(geom_opts, bg_pat)
             local pos = calc_geom_position_in(geom_opts[key], dim)
+
             return {
                 width = dim[key].width,
                 height = dim[key].height,
@@ -103,7 +142,7 @@ local function declare_ui_common()
 
         local tab = api.nvim_get_current_tabpage()
 
-        local geom = internal_api.calc_geom(opts.geom, key, with_geom)
+        local geom = internal_api.calc_geom(opts.geom, opts.background.pat, key, with_geom)
         internal_api.bg.open(geom, opts.background)
         local win = internal_api.fg.open_float(geom, opts[key])
 
@@ -211,10 +250,10 @@ function M.declare_ui(opts)
     end
 
     ui.main.calc_geom = function()
-        return internal_api.main.calc_geom(ui.opts.geom, "main")
+        return internal_api.main.calc_geom(ui.opts.geom, ui.opts.background.pat, "main")
     end
     ui.companion.calc_geom = function()
-        return internal_api.companion.calc_geom(ui.opts.geom, "companion")
+        return internal_api.companion.calc_geom(ui.opts.geom, ui.opts.background.pat, "companion")
     end
 
     ui.main.focus = function()
