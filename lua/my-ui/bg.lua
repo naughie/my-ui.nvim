@@ -3,19 +3,22 @@ local M = {}
 local api = vim.api
 local strwidth = vim.fn.strwidth
 
-function M.build(bg_pat, geom)
-    local base_width = geom.width + 2
-    local base_height = geom.height + 2
-
+local function frame_size(bg_pat, dim)
     local pat_hor_len = strwidth(bg_pat.hor)
-    local copies = math.floor(base_width / pat_hor_len) + 1
-    local pat_width = pat_hor_len * copies
+    local copies = math.floor((dim.width + 2) / pat_hor_len) + 1
+    local width = pat_hor_len * copies + 2 * strwidth(bg_pat.corner)
 
-    local diff = pat_width - base_width
-    local col_offset = math.floor(diff / 2)
+    return width, dim.height + 4, copies
+end
 
-    local pat_cor_len = strwidth(bg_pat.corner)
+function M.calc_dim(bg_pat, dim)
+    local width, height = frame_size(bg_pat, dim)
+    return { width = width, height = height }
+end
 
+function M.build(bg_pat, geom)
+    local width, height, copies = frame_size(bg_pat, geom)
+    local base_height = height - 2
     local hor = bg_pat.corner .. string.rep(bg_pat.hor, copies) .. bg_pat.corner
 
     local max_ver_width = { left = 0, right = 0 }
@@ -44,11 +47,11 @@ function M.build(bg_pat, geom)
         local l_pat = bg_pat.ver.left[l_idx]
         local r_pat = bg_pat.ver.right[r_idx]
 
-        local offset = 2 * pat_cor_len - strwidth(l_pat) - strwidth(r_pat)
+        local space = width - strwidth(l_pat) - strwidth(r_pat)
 
-        table.insert(lines, l_pat .. string.rep(" ", pat_width + offset) .. r_pat)
+        table.insert(lines, l_pat .. string.rep(" ", space) .. r_pat)
 
-        local total_width = string.len(l_pat) + string.len(r_pat) + pat_width + offset
+        local total_width = string.len(l_pat) + string.len(r_pat) + space
         local l_width = string.len(l_pat) + max_ver_width.left - vim.fn.strwidth(l_pat)
         local r_width = string.len(r_pat) + max_ver_width.right - vim.fn.strwidth(r_pat)
         table.insert(hl, { line = i, from = 0, to = l_width })
@@ -59,10 +62,10 @@ function M.build(bg_pat, geom)
 
     return {
         lines = lines,
-        width = pat_width + pat_cor_len * 2,
-        height = base_height + 2,
-        col = geom.col - pat_cor_len - col_offset - 1,
-        row = geom.row - 2,
+        width = width,
+        height = height,
+        col = geom.col - math.floor((width - geom.width) / 2),
+        row = geom.row - (height - geom.height) / 2,
         hl = hl,
         pat = bg_pat,
     }
