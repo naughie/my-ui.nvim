@@ -115,6 +115,7 @@ function M.configure(ui)
             style = "minimal",
             border = "none",
             focusable = true,
+            zindex = 50,
         })
         local old_win = ui.states.win_id.set(new_win)
         api.nvim_set_option_value("winfixbuf", true, { win = new_win })

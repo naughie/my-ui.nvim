@@ -18,6 +18,7 @@ local function open_float_with(buf, geom, win_id_state)
         style = "minimal",
         border = "none",
         focusable = false,
+        zindex = 49,
     })
 
     local old_win = win_id_state.set(new_win)
