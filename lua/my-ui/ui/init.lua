@@ -6,8 +6,10 @@ local states = require("my-ui.states")
 local config_fg = require("my-ui.ui.fg_win")
 local config_bg = require("my-ui.ui.bg_win")
 
+local mkstate = require("glocal-states")
 local api = vim.api
 local augroup = api.nvim_create_augroup("NaughieMyuiUi", { clear = true })
+local zindex_stack = mkstate.tab()
 
 local function num_or_call(n, arg)
     if type(n) == "number" then
@@ -87,6 +89,56 @@ local function modify_geom_with(with_geom, calc_default)
     end
 end
 
+local function remove_layer(stack, ui)
+    for i = #stack, 1, -1 do
+        if stack[i] == ui then
+            table.remove(stack, i)
+            stack.first_changed = math.min(stack.first_changed or i, i)
+            return
+        end
+    end
+end
+
+local function clear_zindex(ui, tab)
+    local stack = zindex_stack.get(tab)
+    if not stack then return end
+
+    remove_layer(stack, ui)
+    if #stack == 0 then zindex_stack.clear(tab) end
+end
+
+local function layer_zindex(index)
+    -- Keep the lowest foreground at Neovim's default zindex of 50.
+    return 50 - 1 + 2 * (index - 1)
+end
+
+local function new_zindex(ui, tab)
+    local stack = zindex_stack.get(tab)
+    if not stack then
+        stack = {}
+        zindex_stack.set(stack, tab)
+    elseif ui.states.win_id.get(tab) then
+        remove_layer(stack, ui)
+    end
+
+    for i = stack.first_changed or #stack + 1, #stack do
+        local pane = stack[i]
+        local zindex = layer_zindex(i)
+        local bg_win = pane.bg_states.win_id.get(tab)
+        local fg_win = pane.states.win_id.get(tab)
+        if bg_win and api.nvim_win_is_valid(bg_win) then
+            api.nvim_win_set_config(bg_win, { zindex = zindex })
+        end
+        if fg_win and api.nvim_win_is_valid(fg_win) then
+            api.nvim_win_set_config(fg_win, { zindex = zindex + 1 })
+        end
+    end
+    stack.first_changed = nil
+
+    table.insert(stack, ui)
+    return layer_zindex(#stack)
+end
+
 local function declare_ui_common()
     local ui = {}
 
@@ -96,6 +148,9 @@ local function declare_ui_common()
     local internal_api = { fg = fg_internal_api, bg = bg_internal_api }
 
     ui.close = function(tab)
+        tab = tab or api.nvim_get_current_tabpage()
+        clear_zindex(ui, tab)
+
         local win = ui.states.win_id.get(tab)
         ui.states.win_id.clear(tab)
         internal_api.bg.close(tab)
@@ -143,13 +198,22 @@ local function declare_ui_common()
         local tab = api.nvim_get_current_tabpage()
 
         local geom = internal_api.calc_geom(opts.geom, opts.background.pat, key, with_geom)
-        internal_api.bg.open(geom, opts.background)
-        local win = internal_api.fg.open_float(geom, opts[key])
+        local zindex = new_zindex(ui, tab)
+        local ok, win = pcall(function()
+            internal_api.bg.open(geom, opts.background, zindex)
+            return internal_api.fg.open_float(geom, opts[key], zindex + 1)
+        end)
+        if not ok or not win then
+            ui.close(tab)
+            if not ok then error(win, 0) end
+            return
+        end
 
         api.nvim_create_autocmd("WinClosed", {
             group = augroup,
             pattern = tostring(win),
             callback = function()
+                clear_zindex(ui, tab)
                 internal_api.bg.close(tab)
 
                 cleanup_win(tab, win)
@@ -165,7 +229,10 @@ local function declare_ui_common()
         local win = ui.states.win_id.get()
         if not win or not api.nvim_win_is_valid(win) then return end
 
-        internal_api.bg.redraw(bg_opts)
+        local tab = api.nvim_get_current_tabpage()
+        local zindex = new_zindex(ui, tab)
+        api.nvim_win_set_config(win, { zindex = zindex + 1 })
+        internal_api.bg.redraw(bg_opts, zindex)
         vim.schedule(function()
             api.nvim_set_current_win(win)
         end)
