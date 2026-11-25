@@ -8,7 +8,8 @@ local api = vim.api
 
 local augroup = api.nvim_create_augroup("NaughieMyuiUiCloseBg", { clear = true })
 
-local function open_float_with(buf, geom, win_id_state)
+local function open_float_with(buf, geom, win_id_state, zindex)
+    local tab = api.nvim_get_current_tabpage()
     local new_win = api.nvim_open_win(buf, true, {
         relative = "editor",
         width = geom.width,
@@ -18,10 +19,10 @@ local function open_float_with(buf, geom, win_id_state)
         style = "minimal",
         border = "none",
         focusable = false,
-        zindex = 49,
+        zindex = zindex,
     })
 
-    local old_win = win_id_state.set(new_win)
+    local old_win = win_id_state.set(new_win, tab)
 
     api.nvim_set_option_value("winfixbuf", true, { win = new_win })
 
@@ -61,7 +62,7 @@ function M.configure(ui)
 
     local internal_api = {}
 
-    internal_api.open = function(fg_geom, bg_opts)
+    internal_api.open = function(fg_geom, bg_opts, zindex)
         create_buf_with(ui.bg_states.buf_id)
         local buf = ui.bg_states.buf_id.get()
         if not buf then return end
@@ -71,7 +72,7 @@ function M.configure(ui)
 
         api.nvim_buf_set_lines(buf, 0, -1, false, bg_buf.lines)
 
-        local win = open_float_with(buf, bg_buf, ui.bg_states.win_id)
+        local win = open_float_with(buf, bg_buf, ui.bg_states.win_id, zindex)
 
         local ns = api.nvim_create_namespace("")
         api.nvim_win_set_hl_ns(win, ns)
@@ -88,14 +89,14 @@ function M.configure(ui)
         bg.clear_focus_highlight(buf)
     end
 
-    internal_api.redraw = function(bg_opts)
+    internal_api.redraw = function(bg_opts, zindex)
         local buf = ui.bg_states.buf_id.get()
         if not buf then return end
 
         local bg_buf = ui.bg_states.bg.get()
         if not bg_buf then return end
 
-        local win, old_win = open_float_with(buf, bg_buf, ui.bg_states.win_id)
+        local win, old_win = open_float_with(buf, bg_buf, ui.bg_states.win_id, zindex)
         local ns = ui.bg_states.hl_ns.get()
         if not ns then return end
         api.nvim_win_set_hl_ns(win, ns)

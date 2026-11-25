@@ -102,10 +102,11 @@ function M.configure(ui)
         return new_buf, old_buf
     end
 
-    internal_api.open_float = function(geom, opts)
+    internal_api.open_float = function(geom, opts, zindex)
         local buf = ui.states.buf_id.get()
         if not buf then return end
 
+        local tab = api.nvim_get_current_tabpage()
         local new_win = api.nvim_open_win(buf, true, {
             relative = "editor",
             width = geom.width,
@@ -115,9 +116,9 @@ function M.configure(ui)
             style = "minimal",
             border = "none",
             focusable = true,
-            zindex = 50,
+            zindex = zindex,
         })
-        local old_win = ui.states.win_id.set(new_win)
+        local old_win = ui.states.win_id.set(new_win, tab)
         api.nvim_set_option_value("winfixbuf", true, { win = new_win })
 
         states.ui_win_table.insert(new_win)
